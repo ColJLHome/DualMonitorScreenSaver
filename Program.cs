@@ -12,13 +12,15 @@ internal static class Program
         var command = args.Length == 0 ? "/c" : args[0].ToLowerInvariant().Trim();
         if (command.StartsWith("/c") || command.StartsWith("-c"))
         {
-            Application.Run(new SettingsForm());
+            using var settingsForm = new SettingsForm();
+            Application.Run(settingsForm);
             return;
         }
 
         if (command.StartsWith("/p") || command.StartsWith("-p"))
         {
-            var handleText = command.Length > 2 ? command[2..].Trim(':') : args.ElementAtOrDefault(1);
+            var handleText = command[2..].TrimStart(':').Trim();
+            if (handleText.Length == 0) handleText = args.ElementAtOrDefault(1);
             if (long.TryParse(handleText, out var value))
                 RunPreview(new IntPtr(value));
             return;
@@ -40,24 +42,42 @@ internal static class Program
         }
 
         var forms = Screen.AllScreens.Select(screen => new SaverForm(screen.Bounds, settings, images)).ToArray();
-        foreach (var form in forms.Skip(1)) form.Show();
-        Application.Run(forms[0]);
-        foreach (var form in forms.Skip(1)) form.Close();
+        try
+        {
+            foreach (var form in forms.Skip(1)) form.Show();
+            Application.Run(forms[0]);
+        }
+        finally
+        {
+            foreach (var form in forms) form.Dispose();
+        }
     }
 
     private static void RunPreview(IntPtr parent)
     {
         if (parent == IntPtr.Zero) return;
-        GetClientRect(parent, out var rect);
+        if (!GetClientRect(parent, out var rect) || rect.Right <= 0 || rect.Bottom <= 0) return;
         var settings = AppSettings.Load();
         var images = ImageLibrary.FindImages(settings.Folder, settings.IncludeSubfolders).ToArray();
-        var form = new SaverForm(new Rectangle(0, 0, rect.Right, rect.Bottom), settings, images, true);
+        using var form = new SaverForm(new Rectangle(0, 0, rect.Right, rect.Bottom), settings, images, true);
+        // SetParent alone does not change a top-level window into a child window.
+        form.TopLevel = false;
         SetParent(form.Handle, parent);
+        form.Bounds = new Rectangle(0, 0, rect.Right, rect.Bottom);
         form.Show();
         Application.Run(form);
     }
 
-    [StructLayout(LayoutKind.Sequential)] private struct NativeRect { public int Left, Top, Right, Bottom; }
-    [DllImport("user32.dll")] private static extern IntPtr SetParent(IntPtr child, IntPtr parent);
-    [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr handle, out NativeRect rect);
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left, Top, Right, Bottom;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetParent(IntPtr child, IntPtr parent);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetClientRect(IntPtr handle, out NativeRect rect);
 }
