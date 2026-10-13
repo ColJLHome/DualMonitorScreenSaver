@@ -5,6 +5,14 @@ internal static class ImageLibrary
     private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase)
         { ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff" };
 
+    public static bool MeetsMinimumResolution(Size imageSize, Size screenSize, int minimumPercent)
+    {
+        var percentage = Math.Clamp(minimumPercent, 0, 100);
+        var imagePixels = (long)imageSize.Width * imageSize.Height;
+        var screenPixels = (long)screenSize.Width * screenSize.Height;
+        return imagePixels >= screenPixels * (percentage / 100.0);
+    }
+
     public static IEnumerable<string> FindImages(string folder, bool recursive)
     {
         if (!Directory.Exists(folder)) yield break;

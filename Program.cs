@@ -59,7 +59,8 @@ internal static class Program
         if (!GetClientRect(parent, out var rect) || rect.Right <= 0 || rect.Bottom <= 0) return;
         var settings = AppSettings.Load();
         var images = ImageLibrary.FindImages(settings.Folder, settings.IncludeSubfolders).ToArray();
-        using var form = new SaverForm(new Rectangle(0, 0, rect.Right, rect.Bottom), settings, images, true);
+        using var form = new SaverForm(new Rectangle(0, 0, rect.Right, rect.Bottom), settings, images,
+            preview: true, screenResolution: Screen.FromHandle(parent).Bounds.Size);
         // SetParent alone does not change a top-level window into a child window.
         form.TopLevel = false;
         SetParent(form.Handle, parent);

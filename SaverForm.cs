@@ -9,12 +9,14 @@ internal sealed class SaverForm : Form
     private Point initialMouse;
     private bool cursorHidden;
     private readonly bool preview;
+    private readonly Size screenResolution;
 
-    public SaverForm(Rectangle bounds, AppSettings settings, string[] images, bool preview = false)
+    public SaverForm(Rectangle bounds, AppSettings settings, string[] images, bool preview = false, Size? screenResolution = null)
     {
         this.settings = settings;
         this.images = images;
         this.preview = preview;
+        this.screenResolution = screenResolution ?? bounds.Size;
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.Manual;
         Bounds = bounds;
@@ -87,6 +89,8 @@ internal sealed class SaverForm : Form
                 var bytes = File.ReadAllBytes(images[(int)(((long)startIndex + offset) % images.Length)]);
                 using var stream = new MemoryStream(bytes);
                 using var loaded = Image.FromStream(stream);
+                if (!ImageLibrary.MeetsMinimumResolution(loaded.Size, screenResolution,
+                    settings.MinimumImageResolutionPercent)) continue;
                 // Detach the displayed bitmap from the stream so files are never left locked.
                 var replacement = new Bitmap(loaded);
                 var old = current;
